@@ -2,151 +2,116 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AI Pro Exporter v4</title>
+    <title>AI Pro Exporter v6 (Native Text & RTL)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
     
     <style>
-        :root { --primary: #10a37f; --primary-hover: #0d8a6a; --bg: #f7f7f8; --text: #2d2d2d; }
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; color: var(--text); }
+        :root { --primary: #10a37f; --bg: #f7f7f8; }
+        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; }
         
-        /* Toolbar */
-        .toolbar { background: white; padding: 12px 24px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #e5e5e5; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .toolbar strong { color: var(--primary); font-size: 1.1em; margin-right: 10px; }
-        input#filename { padding: 10px; border: 1px solid #ddd; border-radius: 6px; flex-grow: 1; outline: none; transition: border 0.2s; }
-        input#filename:focus { border-color: var(--primary); }
-        
-        /* Main Layout */
+        /* UI Elements - Hidden during Print */
+        .toolbar { background: white; padding: 12px 24px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #e5e5e5; z-index: 100; }
         .main-content { display: flex; flex-grow: 1; overflow: hidden; }
-        .pane { width: 50%; display: flex; flex-direction: column; position: relative; }
-        .editor-pane { border-right: 1px solid #e5e5e5; }
+        .pane { width: 50%; display: flex; flex-direction: column; }
+        textarea { flex-grow: 1; padding: 20px; border: none; font-family: monospace; font-size: 14px; background: #fafafa; outline: none; border-right: 1px solid #eee; }
+        
+        /* Preview Area */
         .preview-pane { background: white; overflow-y: auto; }
+        #render-area { 
+            padding: 40px; 
+            line-height: 1.6; 
+            font-size: 15px; 
+            color: #24292f;
+            min-height: 100%;
+        }
 
-        /* Floating Action Buttons inside Editor */
-        .floating-actions { position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px; }
-        
-        textarea { flex-grow: 1; padding: 20px; border: none; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 14px; line-height: 1.6; resize: none; outline: none; background: #fafafa; }
-        
+        /* RTL Handling */
+        .rtl-block { direction: rtl; text-align: right; font-family: 'Arial', sans-serif; }
+        .ltr-block { direction: ltr; text-align: left; }
+
+        /* Code Blocks - Always LTR */
+        pre { background: #1e1e1e; padding: 15px; border-radius: 8px; direction: ltr !important; text-align: left !important; overflow-x: auto; }
+        code { font-family: monospace; }
+        p code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; }
+
+        /* Print Specifics */
+        @media print {
+            .toolbar, textarea { display: none !important; }
+            .main-content, .pane, .preview-pane { display: block !important; width: 100% !important; height: auto !important; overflow: visible !important; }
+            body { background: white; }
+            #render-area { padding: 0; margin: 0; }
+            pre { white-space: pre-wrap; word-wrap: break-word; }
+        }
+
         /* Buttons */
-        button { padding: 10px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+        button, .btn-support { padding: 10px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; text-decoration: none; font-size: 13px; display: flex; align-items: center; gap: 6px; }
         .btn-paste { background: #6e6e73; color: white; }
-        .btn-paste:hover { background: #555558; }
-        .btn-clear { background: #fff; color: #ff4d4d; border: 1px solid #ff4d4d; }
-        .btn-clear:hover { background: #fff5f5; }
-        .btn-download { background: var(--primary); color: white; }
-        .btn-download:hover { background: var(--primary-hover); }
-
-        .btn-support {
-    background: #FFDD00; /* Classic Buy Me a Coffee Yellow */
-    color: #000000;
-    text-decoration: none;
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: transform 0.2s, background 0.2s;
-    border: 1px solid rgba(0,0,0,0.1);
-}
-
-.btn-support:hover {
-    background: #ffea00;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-        /* PDF/Preview Typography */
-        #render-area { padding: 50px; line-height: 1.7; font-size: 15px; }
-        #render-area h1, #render-area h2 { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 30px; }
-        #render-area code { background: #f0f0f0; padding: 3px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
-        #render-area pre { background: #1e1e1e; padding: 20px; border-radius: 10px; margin: 20px 0; position: relative; }
-        #render-area pre code { background: none; color: #d1d1d1; font-size: 14px; white-space: pre-wrap; word-break: break-all; }
-        #render-area table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-        #render-area th, #render-area td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        #render-area th { background: #f8f8f8; }
+        .btn-print { background: var(--primary); color: white; }
+        .btn-support { background: #FFDD00; color: black; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <strong>AI PDF</strong>
-    <input type="text" id="filename" placeholder="Name your file (e.g. Project_Draft)">
+    <strong>AI PDF PRO</strong>
     <button class="btn-paste" onclick="pasteFromClipboard()">📋 Paste</button>
-    <button class="btn-clear" onclick="clearAll()">🗑️ Clear</button>
-    <button class="btn-download" onclick="exportToPDF()">💾 Download PDF</button>
-    <a href="https://buymeacoffee.com/metallicode?new=1" target="_blank" class="btn-support">
-    ☕ Support
-</a> 
+    <div style="flex-grow:1"></div>
+    <a href="https://buymeacoffee.com/metallicode?new=1" target="_blank" class="btn-support">☕ Support</a>
+    <button class="btn-print" onclick="generatePDF()">🖨️ Save as PDF</button>
 </div>
 
 <div class="main-content">
-    <div class="pane editor-pane">
-        <textarea id="rawInput" placeholder="Paste your AI content here..." oninput="updatePreview()"></textarea>
+    <div class="pane">
+        <textarea id="rawInput" placeholder="Paste Hebrew/English mixed text..." oninput="updatePreview()"></textarea>
     </div>
     <div class="pane preview-pane">
-        <div id="render-area">
-            <p style="color: #999; text-align: center; margin-top: 100px;">Preview will appear here as you paste content.</p>
-        </div>
+        <div id="render-area"></div>
     </div>
 </div>
 
 <script>
-    // Initialize Markdown Parser
-    marked.setOptions({ gfm: true, breaks: true });
-
     function updatePreview() {
         const input = document.getElementById('rawInput').value;
         const renderArea = document.getElementById('render-area');
         
-        if (!input) {
-            renderArea.innerHTML = '<p style="color: #999; text-align: center; margin-top: 100px;">Preview will appear here...</p>';
-            return;
-        }
+        // Custom Markdown parsing for RTL detection
+        const rawHtml = marked.parse(input);
+        renderArea.innerHTML = rawHtml;
 
-        renderArea.innerHTML = marked.parse(input);
+        // Apply RTL logic to paragraphs containing Hebrew
+        const paragraphs = renderArea.querySelectorAll('p, li, h1, h2, h3');
+        const hebrewPattern = /[\u0590-\u05FF]/;
+        
+        paragraphs.forEach(el => {
+            if (hebrewPattern.test(el.innerText)) {
+                el.classList.add('rtl-block');
+            } else {
+                el.classList.add('ltr-block');
+            }
+        });
+
+        // Highlight code
         renderArea.querySelectorAll('pre code').forEach((el) => {
             hljs.highlightElement(el);
+            el.parentElement.classList.add('ltr-block'); // Codes are always LTR
         });
     }
 
-    // NEW: Paste from Clipboard function
     async function pasteFromClipboard() {
         try {
             const text = await navigator.clipboard.readText();
             document.getElementById('rawInput').value = text;
             updatePreview();
-        } catch (err) {
-            alert("Unable to access clipboard. Please use Ctrl+V or check browser permissions.");
-        }
+        } catch (e) { alert("Please use Ctrl+V"); }
     }
 
-    function clearAll() {
-        if(confirm("Clear everything?")) {
-            document.getElementById('rawInput').value = "";
-            document.getElementById('filename').value = "";
-            updatePreview();
-        }
-    }
-
-    function exportToPDF() {
-        const renderArea = document.getElementById('render-area');
-        const filename = document.getElementById('filename').value || 'AI-Export';
-
-        const opt = {
-            margin: [15, 15],
-            filename: `${filename}.pdf`,
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-        };
-
-        html2pdf().set(opt).from(renderArea).save();
+    function generatePDF() {
+        // This opens the browser's native print dialog.
+        // Users should select "Save as PDF" as the destination.
+        window.print();
     }
 </script>
-
 </body>
 </html>
